@@ -1,0 +1,15 @@
+# Ignore the target directory from Maven
+target/
+*.jar
+
+# Ignore IDE files
+.idea/
+*.iml
+.vscode/
+
+# Ignore sensitive configuration files if any local ones exist
+src/main/resources/application-local.properties
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
