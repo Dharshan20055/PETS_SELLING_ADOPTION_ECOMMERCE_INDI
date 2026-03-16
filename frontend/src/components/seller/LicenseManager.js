@@ -18,10 +18,24 @@ const LicenseManager = () => {
   const [alert, setAlert]       = useState({ msg: '', type: 'success' });
   const [saving, setSaving]     = useState(false);
 
+  // 1. Fetch and Sort (Newest First)
   const fetchLicenses = () => {
     licenseAPI.getMyLicenses()
-      .then(r => setLicenses(r.data))
-      .catch(() => setAlert({ msg: 'Failed to load licenses', type: 'error' }))
+      .then(r => {
+        // Safety: Ensure r.data is an array
+        const data = Array.isArray(r.data) ? r.data : [];
+        
+        // Sorting: Assuming licenseId or createdAt exists to show recently added at top
+        const sortedData = [...data].sort((a, b) => {
+          return (b.licenseId || 0) - (a.licenseId || 0);
+        });
+
+        setLicenses(sortedData);
+      })
+      .catch(() => {
+        setAlert({ msg: 'Failed to load licenses', type: 'error' });
+        setLicenses([]); // Fallback to empty array on error
+      })
       .finally(() => setLoading(false));
   };
 
@@ -29,13 +43,23 @@ const LicenseManager = () => {
 
   const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+  // 2. Add and Auto-Refresh
   const handleAdd = async () => {
+    if (!form.licenseNumber || !form.issuedDate || !form.expiryDate) {
+      setAlert({ msg: 'Please fill all required fields', type: 'error' });
+      return;
+    }
+
     setSaving(true);
     try {
       await licenseAPI.addLicense(form);
       setAlert({ msg: 'License added successfully!', type: 'success' });
+      
+      // Close dialog and reset form
       setOpen(false);
       setForm({ licenseNumber: '', issuedDate: '', expiryDate: '' });
+      
+      // Trigger a refresh to show the new item immediately
       fetchLicenses();
     } catch (e) {
       setAlert({ msg: e.response?.data?.message || 'Failed to add license', type: 'error' });
@@ -51,6 +75,7 @@ const LicenseManager = () => {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Button startIcon={<ArrowBack />} onClick={() => navigate('/seller')} sx={{ mb: 2 }}>Back to Dashboard</Button>
+      
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" fontWeight={700}>License Manager</Typography>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>
@@ -58,18 +83,23 @@ const LicenseManager = () => {
         </Button>
       </Box>
 
-      {alert.msg && <Alert severity={alert.type} sx={{ mb: 2 }} onClose={() => setAlert({ msg: '' })}>{alert.msg}</Alert>}
+      {alert.msg && (
+        <Alert severity={alert.type} sx={{ mb: 2 }} onClose={() => setAlert({ msg: '' })}>
+          {alert.msg}
+        </Alert>
+      )}
 
       <Paper elevation={2} sx={{ borderRadius: 3, mb: 3 }}>
         <Box sx={{ p: 2, bgcolor: 'primary.50', borderRadius: '12px 12px 0 0', display: 'flex', alignItems: 'center', gap: 1 }}>
           <VerifiedUser color="primary" />
           <Typography variant="subtitle1" fontWeight={600}>
-            Licenses are required to sell pets commercially. Adoption listings do not need a license.
+            Licenses are required to sell pets commercially.
           </Typography>
         </Box>
         <Divider />
 
-        {licenses.length === 0 ? (
+        {/* 3. Safety Check for Render */}
+        {(!Array.isArray(licenses) || licenses.length === 0) ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>
             <Typography color="text.secondary" mb={2}>No licenses registered yet.</Typography>
             <Button variant="outlined" startIcon={<Add />} onClick={() => setOpen(true)}>
@@ -81,15 +111,19 @@ const LicenseManager = () => {
             {licenses.map((lic, idx) => {
               const expired = isExpired(lic.expiryDate);
               return (
-                <React.Fragment key={lic.licenseId}>
+                <React.Fragment key={lic.licenseId || idx}>
                   {idx > 0 && <Divider />}
                   <ListItem sx={{ px: 3, py: 2 }}>
                     <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Typography fontWeight={600}>{lic.licenseNumber}</Typography>
-                          <Chip size="small" label={expired ? 'Expired' : 'Valid'}
-                            color={expired ? 'error' : 'success'} />
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            {/* Visual indicator for the very first item (the most recent) */}
+                            {idx === 0 && <Chip size="small" label="New" color="primary" variant="outlined" />}
+                            <Chip size="small" label={expired ? 'Expired' : 'Valid'}
+                              color={expired ? 'error' : 'success'} />
+                          </Box>
                         </Box>
                       }
                       secondary={
@@ -106,6 +140,7 @@ const LicenseManager = () => {
         )}
       </Paper>
 
+      {/* Add License Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Add New License</DialogTitle>
         <DialogContent>

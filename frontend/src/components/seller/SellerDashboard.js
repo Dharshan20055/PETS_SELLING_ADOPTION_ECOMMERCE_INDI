@@ -45,9 +45,10 @@ const SellerDashboard = () => {
         petAPI.getMyListings(),
         orderAPI.getSellerOrders(user.id),
       ]);
-      setRequests(r.data);
-      setListings(l.data);
-      setOrders(o.data);
+      // Added safety: ensuring we only set state if the response contains an array
+      setRequests(Array.isArray(r.data) ? r.data : []);
+      setListings(Array.isArray(l.data) ? l.data : []);
+      setOrders(Array.isArray(o.data) ? o.data : []);
     } catch (e) {
       setAlert({ msg: 'Failed to load dashboard data', type: 'error' });
     } finally {
@@ -77,8 +78,9 @@ const SellerDashboard = () => {
     }
   };
 
-  const pending   = requests.filter(r => r.status === 'PENDING').length;
-  const available = listings.filter(l => l.availability).length;
+  // Fixed: Added Array.isArray checks to prevent "filter is not a function"
+  const pending   = Array.isArray(requests) ? requests.filter(r => r.status === 'PENDING').length : 0;
+  const available = Array.isArray(listings) ? listings.filter(l => l.availability).length : 0;
 
   if (loading) return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -108,10 +110,10 @@ const SellerDashboard = () => {
 
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {[
-          { icon: <ListAlt />,    label: 'Total Listings',   value: listings.length, color: 'primary' },
+          { icon: <ListAlt />,    label: 'Total Listings',   value: listings?.length || 0, color: 'primary' },
           { icon: <TrendingUp />, label: 'Available',        value: available,       color: 'success' },
           { icon: <CheckCircle />,label: 'Pending Requests', value: pending,         color: 'warning' },
-          { icon: <Inventory />,  label: 'Active Orders',    value: orders.length,   color: 'secondary' },
+          { icon: <Inventory />,  label: 'Active Orders',    value: orders?.length || 0,   color: 'secondary' },
         ].map((s) => (
           <Grid item xs={6} sm={3} key={s.label}>
             <StatCard {...s} />
@@ -126,7 +128,7 @@ const SellerDashboard = () => {
             {pending > 0 && <Chip label={`${pending} pending`} color="warning" size="small" sx={{ ml: 1 }} />}
           </Typography>
           <Paper elevation={2} sx={{ borderRadius: 3 }}>
-            {requests.length === 0 ? (
+            {(!requests || requests.length === 0) ? (
               <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography color="text.secondary">No requests yet.</Typography>
               </Box>
@@ -181,7 +183,7 @@ const SellerDashboard = () => {
         <Grid item xs={12} md={5}>
           <Typography variant="h6" fontWeight={600} mb={2}>My Listings</Typography>
           <Paper elevation={2} sx={{ borderRadius: 3 }}>
-            {listings.length === 0 ? (
+            {(!listings || listings.length === 0) ? (
               <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography color="text.secondary" mb={2}>No listings yet.</Typography>
                 <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/seller/add-pet')}>

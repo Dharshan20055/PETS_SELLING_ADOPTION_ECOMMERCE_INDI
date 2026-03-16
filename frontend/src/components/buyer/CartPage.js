@@ -1,88 +1,79 @@
 import React from 'react';
-import {
-  Container, Typography, Box, List, ListItem, ListItemText,
-  ListItemAvatar, Avatar, IconButton, Button, Divider,
-  Paper, Chip, Alert
+import { 
+  Container, Typography, Box, Paper, List, ListItem, 
+  ListItemText, IconButton, Button, Divider, Avatar 
 } from '@mui/material';
-import { Delete, ShoppingCartCheckout, Pets } from '@mui/icons-material';
+import { Delete, ShoppingCart, ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 
 const CartPage = () => {
-  const { cartItems, removeFromCart, checkout } = useCart();
+  const { cartItems, removeFromCart, checkout, cartCount } = useCart();
   const navigate = useNavigate();
-  const [msg, setMsg] = React.useState('');
-
-  const safeItems = Array.isArray(cartItems) ? cartItems : [];
-
-  const total = safeItems.reduce((sum, item) => {
-    const price = item.pet?.price || 0;
-    return sum + parseFloat(price);
-  }, 0);
 
   const handleCheckout = async () => {
     try {
       await checkout();
-      setMsg('Checkout successful! Submit individual requests for each pet.');
-      setTimeout(() => navigate('/requests'), 2000);
-    } catch (e) {
-      setMsg(e.response?.data?.message || 'Checkout failed');
+      navigate('/requests');
+    } catch (err) {
+      console.error("Checkout failed", err);
     }
   };
 
-  if (safeItems.length === 0) return (
-    <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
-      <Pets sx={{ fontSize: 80, color: 'text.disabled' }} />
-      <Typography variant="h5" mt={2} color="text.secondary">Your cart is empty</Typography>
-      <Button variant="contained" sx={{ mt: 3 }} onClick={() => navigate('/')}>Browse Pets</Button>
-    </Container>
-  );
+  // If items are 0, show the empty state
+  if (!cartItems || cartItems.length === 0) {
+    return (
+      <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+        <ShoppingCart sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+        <Typography variant="h5" color="text.secondary">Your cart is empty</Typography>
+        <Button variant="contained" onClick={() => navigate('/')} sx={{ mt: 3 }}>
+          Browse Pets
+        </Button>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" fontWeight={700} mb={3}>Your Cart</Typography>
-
-      {msg && <Alert severity="info" sx={{ mb: 2 }}>{msg}</Alert>}
-
-      <Paper elevation={2} sx={{ borderRadius: 3 }}>
-        <List>
-          {safeItems.map((item, idx) => (
-            <React.Fragment key={item.cartId}>
-              {idx > 0 && <Divider />}
-              <ListItem secondaryAction={
-                <IconButton edge="end" color="error" onClick={() => removeFromCart(item.cartId)}>
+      <Button startIcon={<ArrowBack />} onClick={() => navigate('/')} sx={{ mb: 2 }}>
+        Back to Shopping
+      </Button>
+      
+      <Typography variant="h4" fontWeight={700} mb={4}>
+        My Cart ({cartCount})
+      </Typography>
+      
+      <Paper elevation={3} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+        <List disablePadding>
+          {cartItems.map((item, idx) => (
+            <React.Fragment key={item.cartItemId || idx}>
+              <ListItem sx={{ py: 2, px: 3 }}>
+                <Avatar 
+                  src={item.pet?.imageUrl} 
+                  variant="rounded" 
+                  sx={{ width: 80, height: 80, mr: 2 }} 
+                />
+                <ListItemText 
+                  primary={
+                    <Typography variant="h6" fontWeight={600}>
+                      {item.pet?.breed || "Pet Listing"}
+                    </Typography>
+                  }
+                  secondary={`Price: ${item.pet?.type === 'ADOPTION' ? 'Free' : `$${item.pet?.price}`}`}
+                />
+                <IconButton color="error" onClick={() => removeFromCart(item.cartItemId)}>
                   <Delete />
                 </IconButton>
-              }>
-                <ListItemAvatar>
-                  <Avatar src={item.pet?.imageUrl} variant="rounded">
-                    <Pets />
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={<Typography fontWeight={600}>{item.pet?.breed}</Typography>}
-                  secondary={
-                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                      <Chip size="small"
-                        label={item.pet?.type === 'ADOPTION' ? 'Free Adoption' : `$${item.pet?.price}`}
-                        color={item.pet?.type === 'ADOPTION' ? 'success' : 'secondary'} />
-                      {item.pet?.location && <Chip size="small" label={item.pet.location} variant="outlined" />}
-                    </Box>
-                  }
-                />
               </ListItem>
+              {idx < cartItems.length - 1 && <Divider />}
             </React.Fragment>
           ))}
         </List>
-
-        <Divider />
-        <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary">{safeItems.length} item(s)</Typography>
-            {total > 0 && <Typography variant="h6" fontWeight={700}>Estimated: ${total.toFixed(2)}</Typography>}
-          </Box>
-          <Button variant="contained" size="large" startIcon={<ShoppingCartCheckout />}
-            onClick={handleCheckout}>Checkout</Button>
+        
+        <Box sx={{ p: 3, bgcolor: 'primary.50', textAlign: 'right' }}>
+          <Button variant="contained" size="large" onClick={handleCheckout}>
+            Submit Adoption Request
+          </Button>
         </Box>
       </Paper>
     </Container>

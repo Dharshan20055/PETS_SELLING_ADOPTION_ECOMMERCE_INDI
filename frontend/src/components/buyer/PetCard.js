@@ -20,6 +20,7 @@ const PetCard = ({ pet }) => {
     e.stopPropagation();
     if (!user) { navigate('/login'); return; }
     try {
+      
       await addToCart(pet.petId);
       setSnack({ open: true, msg: 'Added to cart!', severity: 'success' });
     } catch (err) {

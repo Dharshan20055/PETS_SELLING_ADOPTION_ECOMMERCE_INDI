@@ -10,39 +10,67 @@ export const CartProvider = ({ children }) => {
   const [cartCount, setCartCount] = useState(0);
 
   const fetchCart = async () => {
-    if (!user) { setCartItems([]); setCartCount(0); return; }
+    
+    if (!user || !user.id) {
+      setCartItems([]);
+      setCartCount(0);
+      return;
+    }
     try {
       const res = await cartAPI.getCart(user.id);
-      const items = Array.isArray(res.data) ? res.data : [];
+      const items = Array.isArray(res.data) ? res.data : (res.data.items || []);
       setCartItems(items);
       setCartCount(items.length);
-    } catch { setCartItems([]); setCartCount(0); }
+    } catch (err) {
+      console.error("Cart fetch error:", err);
+      setCartItems([]);
+      setCartCount(0);
+    }
   };
 
-  useEffect(() => { fetchCart(); }, [user]);
+  useEffect(() => {
+    fetchCart();
+  }, [user]);
 
   const addToCart = async (petId) => {
-    await cartAPI.addToCart(petId);
-    fetchCart();
+    try {
+      await cartAPI.addToCart(petId);
+      await fetchCart();
+    } catch (err) {
+      throw err;
+    }
   };
 
   const removeFromCart = async (itemId) => {
-    await cartAPI.removeFromCart(itemId);
-    fetchCart();
+    try {
+      await cartAPI.removeFromCart(itemId);
+      await fetchCart();
+    } catch (err) {
+      throw err;
+    }
   };
 
-  const checkout = async () => {
-    const res = await cartAPI.checkout();
-    await fetchCart();
-    return res.data;
+  const value = {
+    cartItems,
+    cartCount,
+    addToCart,
+    removeFromCart,
+    fetchCart
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, cartCount, addToCart, removeFromCart, checkout, fetchCart }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );
 };
 
-export const useCart = () => useContext(CartContext);
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (context === undefined) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context || {}; 
+};
+
 export default CartContext;
